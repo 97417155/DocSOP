@@ -1,0 +1,135 @@
+# ============================================================
+# 文档解析 SOP - 主配置文件 (YAML)
+# ⚠️ 注意：程序默认加载的是 sop_config.json（零依赖）
+#    要让你对 YAML 的修改生效，必须显式指定：
+#      python run.py <文件> --config config/sop_config.yaml
+#    或改动两份文件保持一致。CLI 运行时会打印实际加载的路径。
+# ============================================================
+
+version: "1.0"
+
+# document_parsing_method 分支路由 + 前端高亮链路
+# enabled=false 时保持原有通用解析行为；命令行 --method 可临时启用
+routing:
+  enabled: false                      # 是否默认启用分支路由
+  default_method: "general"           # 默认解析方法：general / vision / no_hierarchical_structure_parse / _parse_pdf_with_bbox_highlight
+  general_words_limit: 100000         # general 路径转 PDF 对齐的字数上限，超过则跳过（仅无 bbox）
+  recovering_words_limit: 150000      # headers_recovering 路径的字数上限
+
+# 内嵌图片保留：docx / pptx 解析时提取图片落盘，并在原文位置插入 Markdown 图片链接
+images:
+  enabled: true                       # 是否提取 docx 内嵌图片
+  dir: "images"                       # 保存目录：相对路径相对输出目录，绝对路径为固定仓库
+  url_prefix: "images/"               # 链接前缀，可填完整 URL（如 https://cdn/x/images/）
+  max_bytes: 52428800                 # 单张上限（字节），0 表示不限
+
+# ------------------------------------------------------------
+# MinerU 服务器配置（PDF / 图片 / 需要溯源高亮时加载）
+# ------------------------------------------------------------
+mineru:
+  enabled: false                      # 默认关闭；配置好地址再开启，否则 PDF 走本地 pypdf
+  version: "1.x"                      # 1.x | 2.5 | 3.x，决定请求协议
+  base_url: ""                        # 1.x/2.5 主地址，例如 http://<host>:8088
+  parse_url: ""                       # 留空时由 base_url 自动推导 /file_parse
+  download_url: ""                    # 留空时由 base_url 自动推导 /download_folder
+  v3_base_url: ""                     # 3.x 任务制地址，例如 http://<host>:8000
+  consume_backend: "auto"             # auto | pipeline | vlm
+  parse_method: "auto"                # auto | txt | ocr
+  task_poll_interval_seconds: 2
+  task_timeout_seconds: 1800
+  file_parse_timeout_seconds: 600
+  work_dir: "_work/mineru"            # MinerU 解析产物缓存目录
+  max_retries: 2                      # 请求失败重试次数（指数退避）
+  retry_backoff_seconds: 1.0          # 重试基础间隔（秒）
+  api_key: ""                         #  Bearer Token，非空时自动加 Authorization 头
+  headers: {}                         # 自定义请求头，如 {"X-Tenant": "xxx"}
+
+# ------------------------------------------------------------
+# 文件转换配置（LibreOffice / soffice）
+# ------------------------------------------------------------
+converter:
+  soffice_bin: "soffice"              # doc/ppt/wps 等转 PDF 使用
+  timeout_seconds: 120
+
+# ------------------------------------------------------------
+# 解析配置
+# ------------------------------------------------------------
+parsing:
+  # 文本编码探测：auto（chardet/charset_normalizer）或指定如 utf-8
+  encoding: "auto"
+  # 单篇解析全文的字符数上限保护（0 表示不限制）
+  max_content_chars: 0
+  # 解析结果为空时是否仍算成功（默认 false：空内容一律判失败并给出 error）
+  allow_empty_content: false
+  # 非 HTML URL 下载到临时文件时的大小上限（0 表示不限制）
+  max_url_download_bytes: 104857600
+  # PDF 解析策略：mineru | local（本地 pypdf）
+  pdf_strategy: "mineru"
+  # docx 解析策略：lightweight(python-docx) | mineru（溯源）
+  docx_strategy: "lightweight"
+  # 视觉模型（vision 模式图片识别，可选）
+  vision:
+    enabled: false
+    base_url: ""
+    model_name: "qwen2-vl"
+    api_key: ""                         # Bearer Token，非空时自动加 Authorization 头
+    headers: {}                         # 自定义请求头
+    timeout_seconds: 120
+
+# ------------------------------------------------------------
+# 分块配置：default_strategy 指定默认策略，默认父子分块
+# ------------------------------------------------------------
+chunking:
+  default_strategy: "parent_child"
+  # 长度度量单位：char（字符，默认）| token（需 tiktoken，缺失时按CJK估算）
+  length_unit: "char"
+  token_encoding: "cl100k_base"
+  strategies:
+    # 父子分块（默认）：先切父块保上下文，再切子块用于检索
+    parent_child:
+      parent_size: 1500
+      parent_overlap: 0
+      child_size: 400
+      child_overlap: 80
+      respect_headers: true           # 优先按 markdown 标题边界切父块
+    # 递归字符分块（LangChain 风格）
+    recursive:
+      chunk_size: 500
+      chunk_overlap: 50
+      separators: ["\n\n", "\n", "。", "！", "？", "；", ". ", "! ", "? ", "; ", "，", ", ", " ", ""]
+    # 按 markdown 标题层级分块
+    markdown_header:
+      max_size: 1500
+      header_level: 6
+    # 固定长度 + overlap
+    fixed_size:
+      chunk_size: 500
+      chunk_overlap: 50
+    # 按句子切分
+    sentence:
+      max_size: 500
+      overlap_sentences: 1
+    # 语义分块（需 sentence-transformers，缺失时自动降级为 recursive）
+    semantic:
+      max_size: 800
+      model: "sentence-transformers/all-MiniLM-L6-v2"
+      similarity_threshold: 0.7
+
+# ------------------------------------------------------------
+# 结果缓存配置（基于文件指纹，跳过重复解析）
+# ------------------------------------------------------------
+cache:
+  enabled: false                      # 默认关闭；开启后相同文件+策略直接复用结果
+  dir: "_work/cache"                  # 缓存目录（相对配置文件所在目录）
+  ttl_seconds: 86400                  # 缓存有效期（秒），0 表示永不过期
+  url_check_timeout_seconds: 10       # URL 内容签名探测超时（秒）
+
+# ------------------------------------------------------------
+# 输出配置
+# ------------------------------------------------------------
+output:
+  dir: "sop_output"                   # 相对 cwd
+  save_parsed_md: true                # 保存解析全文为 .md
+  save_chunks_json: true              # 保存分块结果为 .json
+  include_elements: false             # result.json 是否内嵌全部 elements（大文档建议 false）
+  encoding: "utf-8"

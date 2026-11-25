@@ -1,0 +1,32 @@
+# 文档解析 SOP - 依赖声明
+#
+# 核心链路（txt/md/log/csv/json 解析、全部非语义分块、缓存、批量并发）零第三方依赖。
+# 以下均为按需依赖：缺失时对应格式解析返回明确失败原因（success=false + error），不会静默产出空内容。
+# 如需一次性装齐，执行：pip install -r requirements.txt
+
+# ---- 基础通信 ----
+requests>=2.28            # MinerU 客户端、视觉模型调用
+html2text>=2020.1         # HTML 解析首选路径（转 Markdown）；缺失时降级到 beautifulsoup4
+beautifulsoup4>=4.11      # HTML 解析降级路径（html2text 缺失时）
+
+# ---- 配置加载 ----
+PyYAML>=6.0               # 读取 sop_config.yaml；不安装则默认读取 sop_config.json（零依赖）
+
+# ---- Office 文档 ----
+python-docx>=0.11         # DOCX 解析（默认轻量路线，支持中英文标题识别）
+python-pptx>=0.6.21       # PPTX 解析（组合形状递归需要 add_group_shape）
+pandas>=1.5               # Excel 解析
+openpyxl>=3.0             # xlsx / xlsm
+xlrd>=2.0                 # xls
+
+# ---- PDF / 图片 ----
+pypdf>=3.0                # PDF 本地降级（MinerU 不可用时使用）
+PyMuPDF>=1.23             # 分支路由的 bbox 字符级对齐（extract_pdf_chars）；仅 --method 路由模式需要
+# 另：高亮 PDF 转换需要系统安装 LibreOffice(soffice)；未安装时自动降级（解析仍成功，仅无 bbox/highlight）
+
+# ---- 分块 ----
+tiktoken>=0.5             # token 计数切块；不安装则按 CJK 规则估算
+numpy>=1.23               # 语义分块的向量计算
+sentence-transformers>=2.2  # 语义分块模型（体积较大，仅需要使用 semantic 策略时安装）
+
+# 回归测试使用标准库 unittest，无需额外依赖。

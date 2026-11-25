@@ -1,0 +1,102 @@
+{
+  "version": "1.0",
+  "routing": {
+    "enabled": false,
+    "default_method": "general",
+    "general_words_limit": 100000,
+    "recovering_words_limit": 150000
+  },
+  "images": {
+    "enabled": true,
+    "dir": "images",
+    "url_prefix": "images/",
+    "max_bytes": 52428800
+  },
+  "mineru": {
+    "enabled": false,
+    "version": "1.x",
+    "base_url": "",
+    "parse_url": "",
+    "download_url": "",
+    "v3_base_url": "",
+    "consume_backend": "auto",
+    "parse_method": "auto",
+    "task_poll_interval_seconds": 2,
+    "task_timeout_seconds": 1800,
+    "file_parse_timeout_seconds": 600,
+    "work_dir": "_work/mineru",
+    "max_retries": 2,
+    "retry_backoff_seconds": 1.0,
+    "api_key": "",
+    "headers": {}
+  },
+  "converter": {
+    "soffice_bin": "soffice",
+    "timeout_seconds": 120
+  },
+  "parsing": {
+    "encoding": "auto",
+    "max_content_chars": 0,
+    "allow_empty_content": false,
+    "max_url_download_bytes": 104857600,
+    "pdf_strategy": "mineru",
+    "docx_strategy": "lightweight",
+    "vision": {
+      "enabled": false,
+      "base_url": "",
+      "model_name": "qwen2-vl",
+      "api_key": "",
+      "headers": {},
+      "timeout_seconds": 120
+    }
+  },
+  "chunking": {
+    "default_strategy": "parent_child",
+    "length_unit": "char",
+    "token_encoding": "cl100k_base",
+    "strategies": {
+      "parent_child": {
+        "parent_size": 1500,
+        "parent_overlap": 0,
+        "child_size": 400,
+        "child_overlap": 80,
+        "respect_headers": true
+      },
+      "recursive": {
+        "chunk_size": 500,
+        "chunk_overlap": 50,
+        "separators": ["\n\n", "\n", "。", "！", "？", "；", ". ", "! ", "? ", "; ", "，", ", ", " ", ""]
+      },
+      "markdown_header": {
+        "max_size": 1500,
+        "header_level": 6
+      },
+      "fixed_size": {
+        "chunk_size": 500,
+        "chunk_overlap": 50
+      },
+      "sentence": {
+        "max_size": 500,
+        "overlap_sentences": 1
+      },
+      "semantic": {
+        "max_size": 800,
+        "model": "sentence-transformers/all-MiniLM-L6-v2",
+        "similarity_threshold": 0.7
+      }
+    }
+  },
+  "cache": {
+    "enabled": false,
+    "dir": "_work/cache",
+    "ttl_seconds": 86400,
+    "url_check_timeout_seconds": 10
+  },
+  "output": {
+    "dir": "sop_output",
+    "save_parsed_md": true,
+    "save_chunks_json": true,
+    "include_elements": false,
+    "encoding": "utf-8"
+  }
+}
